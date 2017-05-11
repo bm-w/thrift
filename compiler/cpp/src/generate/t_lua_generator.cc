@@ -959,6 +959,7 @@ void t_lua_generator::generate_deserialize_map_element(ofstream &out,
   t_field fkey(tmap->get_key_type(), key);
   t_field fval(tmap->get_val_type(), val);
 
+  indent(out) << "local " << key << ", " << val << endl;
   generate_deserialize_field(out, &fkey);
   generate_deserialize_field(out, &fval);
 

@@ -82,6 +82,8 @@ public:
       } else if( iter->first.compare("wcf") == 0) {
         wcf_ = true;
         wcf_namespace_ = iter->second;
+      } else if( iter->first.compare("leg") == 0) {
+        leg_ = true;
       } else {
         throw "unknown option csharp:" + iter->first;
       }
@@ -232,6 +234,7 @@ private:
   bool hashcode_;
   bool serialize_;
   bool wcf_;
+  bool leg_;
   std::string wcf_namespace_;
 
   std::map<std::string, int> csharp_keywords;
@@ -2796,6 +2799,9 @@ void t_csharp_generator::generate_csharp_property(ofstream& out,
                                                   bool isPublic,
                                                   bool generateIsset,
                                                   std::string fieldPrefix) {
+  if (leg_ && isPublic) {
+    indent(out) << "[DataMember(Index = " << tfield->get_key() << ")]" << endl;
+  }
   if ((serialize_ || wcf_) && isPublic) {
     indent(out) << "[DataMember(Order = 0)]" << endl;
   }

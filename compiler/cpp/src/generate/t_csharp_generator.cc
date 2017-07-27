@@ -87,6 +87,10 @@ class t_csharp_generator : public t_oop_generator
         wcf_namespace_ = iter->second;
       }
 
+	  iter = parsed_options.find("leg");
+	  leg_ = (iter != parsed_options.end());
+
+		
       out_dir_base_ = "gen-csharp";
     }
     void init_generator();
@@ -194,6 +198,7 @@ class t_csharp_generator : public t_oop_generator
     bool hashcode_;
     bool serialize_;
     bool wcf_;
+	bool leg_;
     std::string wcf_namespace_;
 
     std::map<std::string, int> csharp_keywords;
@@ -2465,6 +2470,9 @@ void t_csharp_generator::generate_property(ofstream& out, t_field* tfield, bool 
     generate_csharp_property(out, tfield, isPublic, generateIsset, "_");
 }
 void t_csharp_generator::generate_csharp_property(ofstream& out, t_field* tfield, bool isPublic, bool generateIsset, std::string fieldPrefix) {
+	if (leg_ && isPublic) {
+		indent(out) << "[DataMember(Index = " << tfield->get_key() << ")]" << endl;
+	}
     if((serialize_||wcf_) && isPublic) {
       indent(out) << "[DataMember(Order = 0)]" << endl;
     }

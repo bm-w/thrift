@@ -810,6 +810,13 @@ void t_swift_generator::generate_swift_struct_init(ostream& out,
       out << (*m_iter)->get_name() << ": "
           << maybe_escape_identifier(type_name((*m_iter)->get_type(), field_is_optional(*m_iter)));
     }
+
+    // Default values.
+    if((*m_iter)->get_value()) {
+      out << " = ";
+      render_const_value(out, (*m_iter)->get_type(), (*m_iter)->get_value());
+    }
+
     ++m_iter;
   }
   out << ")";

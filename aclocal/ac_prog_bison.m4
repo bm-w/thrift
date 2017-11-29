@@ -13,16 +13,34 @@ else
   bison_required_version="$1"
 fi
 
-AC_CHECK_PROG(have_prog_bison, [bison], [yes],[no])
+bisondirs="$PATH"
+AC_ARG_WITH([bison],
+  [AS_HELP_STRING([--with-bison=PATH],
+      [path to directory containing bison executable])],
+  [
+    case "$withval" in
+    "" | y | ye | yes | n | no)
+    AC_MSG_ERROR([Invalid --with-bison value])
+      ;;
+    *) bisondirs="$withval"
+      ;;
+    esac
+  ]
+)
+
+AC_PATH_PROG(bison, [bison],[no], [$bisondirs])
 
 AC_DEFINE_UNQUOTED([BISON_VERSION], [0.0], [Bison version if bison is not available])
 
 #Do not use *.h extension for parser header files, use newer *.hh
 bison_use_parser_h_extension=false
 
-if test "$have_prog_bison" = "yes" ; then
+if test "$bison" = "no" ; then
+  BISON=:
+  AC_MSG_RESULT([NO])
+else
   AC_MSG_CHECKING([for bison version >= $bison_required_version])
-  bison_version=`bison --version | head -n 1 | cut '-d ' -f 4`
+  bison_version=`$bison --version | head -n 1 | cut '-d ' -f 4`
   AC_DEFINE_UNQUOTED([BISON_VERSION], [$bison_version], [Defines bison version])
   if test "$bison_version" \< "$bison_required_version" ; then
     BISON=:
@@ -30,8 +48,10 @@ if test "$have_prog_bison" = "yes" ; then
     AC_MSG_ERROR([Bison version $bison_required_version or higher must be installed on the system!])
   else
     AC_MSG_RESULT([yes])
-    BISON=bison
+    BISON=$bison
     AC_SUBST(BISON)
+    YACC="$bison -y"
+    AC_SUBST(YACC)
 
     #Verify automake version 1.11 headers for yy files are .h, > 1.12 uses .hh
     automake_version=`automake --version | head -n 1 | cut '-d ' -f 4`
@@ -44,9 +64,6 @@ if test "$have_prog_bison" = "yes" ; then
       AC_DEFINE([BISON_USE_PARSER_H_EXTENSION], [1], [Use *.h extension for parser header file])
     fi
   fi
-else
-  BISON=:
-  AC_MSG_RESULT([NO])
 fi
 
 AM_CONDITIONAL([BISON_USE_PARSER_H_EXTENSION], [test x$bison_use_parser_h_extension = xtrue])

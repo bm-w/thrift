@@ -627,7 +627,8 @@ void check_for_list_of_bytes(t_type* list_elem_type) {
   }
 }
 
-static bool g_byte_warning_emitted = false;
+// disable the annoying byte warning by default (we have other tools that expect byte)
+static bool g_byte_warning_emitted = true;
 
 /**
  * Emits a one-time warning on byte type, promoting the new i8 type instead

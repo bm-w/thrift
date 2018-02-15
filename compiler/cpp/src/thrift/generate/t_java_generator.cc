@@ -5392,6 +5392,5 @@ THRIFT_REGISTER_GENERATOR(
     "    generated_annotations=[undated|suppress]:\n"
     "                     undated: suppress the date at @Generated annotations\n"
     "                     suppress: suppress @Generated annotations entirely\n"
-    "jackson-json         Generate annotations to allow the classes to be serialized and \n"
-    "deserialized as json using jackson. (Object keys are member names, enums are integers.)\n"
+    "    jackson-json     Generate annotations to allow the classes to be serialized and deserialized as json using jackson. (Object keys are member names, enums are integers.)\n"
     )

@@ -1404,6 +1404,7 @@ void t_java_generator::generate_java_struct_definition(ofstream& out,
   }
   if (jackson_json_) {
     indent(out) << "@com.fasterxml.jackson.annotation.JsonAutoDetect(fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)" << '\n';
+    indent(out) << "@com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown=true)" << '\n';
   }
   indent(out) << "public " << (is_final ? "final " : "") << (in_class ? "static " : "") << "class "
               << tstruct->get_name() << " ";
@@ -5392,5 +5393,5 @@ THRIFT_REGISTER_GENERATOR(
     "    generated_annotations=[undated|suppress]:\n"
     "                     undated: suppress the date at @Generated annotations\n"
     "                     suppress: suppress @Generated annotations entirely\n"
-    "    jackson-json     Generate annotations to allow the classes to be serialized and deserialized as json using jackson. (Object keys are member names, enums are integers.)\n"
+    "    jackson-json     Generate jackson annotations to allow the classes to be serialized and deserialized as json. (Object keys are member names, enums are integers, unknown fields on deserialize are ignored.)\n"
     )

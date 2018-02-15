@@ -71,6 +71,7 @@ public:
     undated_generated_annotations_  = false;
     suppress_generated_annotations_ = false;
     handle_runtime_exceptions_ = false;
+    jackson_json_ = false;
     for( iter = parsed_options.begin(); iter != parsed_options.end(); ++iter) {
       if( iter->first.compare("beans") == 0) {
         bean_style_ = true;
@@ -102,6 +103,8 @@ public:
         } else {
           throw "unknown option java:" + iter->first + "=" + iter->second;
         }
+      } else if( iter->first.compare("jackson-json") == 0) {
+        jackson_json_ = true;
       } else {
         throw "unknown option java:" + iter->first;
       }
@@ -409,6 +412,7 @@ private:
   bool undated_generated_annotations_;
   bool suppress_generated_annotations_;
   bool handle_runtime_exceptions_;
+  bool jackson_json_;
 
 };
 
@@ -490,6 +494,9 @@ void t_java_generator::generate_enum(t_enum* tenum) {
   generate_java_doc(f_enum, tenum);
   if (is_deprecated) {
     indent(f_enum) << "@Deprecated" << endl;
+  }
+  if (jackson_json_) {
+    indent(f_enum) << "@com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.NUMBER_INT)" << '\n';
   }
   indent(f_enum) << "public enum " << tenum->get_name() << " implements org.apache.thrift.TEnum ";
   scope_up(f_enum);
@@ -1395,6 +1402,9 @@ void t_java_generator::generate_java_struct_definition(ofstream& out,
   if (is_deprecated) {
     indent(out) << "@Deprecated" << endl;
   }
+  if (jackson_json_) {
+    indent(out) << "@com.fasterxml.jackson.annotation.JsonAutoDetect(fieldVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, setterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, getterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, isGetterVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE, creatorVisibility = com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility.NONE)" << '\n';
+  }
   indent(out) << "public " << (is_final ? "final " : "") << (in_class ? "static " : "") << "class "
               << tstruct->get_name() << " ";
 
@@ -1429,6 +1439,9 @@ void t_java_generator::generate_java_struct_definition(ofstream& out,
   out << endl;
 
   for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+    if (jackson_json_) {
+      indent(out) << "@com.fasterxml.jackson.annotation.JsonProperty" << '\n';
+    }
     if (bean_style_ || private_members_) {
       indent(out) << "private ";
     } else {
@@ -5378,4 +5391,7 @@ THRIFT_REGISTER_GENERATOR(
     "set/map.\n"
     "    generated_annotations=[undated|suppress]:\n"
     "                     undated: suppress the date at @Generated annotations\n"
-    "                     suppress: suppress @Generated annotations entirely\n")
+    "                     suppress: suppress @Generated annotations entirely\n"
+    "jackson-json         Generate annotations to allow the classes to be serialized and \n"
+    "deserialized as json using jackson. (Object keys are member names, enums are integers.)\n"
+    )

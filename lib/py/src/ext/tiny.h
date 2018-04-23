@@ -67,13 +67,13 @@ public:
   	if(itr == stringMap_.end())
   	{
   		size_t pos = stringList_.size();
-		writeI32(pos);
+		writeVarint(pos);
 		stringMap_[str] = pos;
 		stringList_.push_back(str);
   	}
   	else
   	{
-		writeI32(itr->second);
+		writeVarint(itr->second);
   	}
 #else
     writeVarint(len);

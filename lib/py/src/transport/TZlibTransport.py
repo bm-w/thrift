@@ -113,8 +113,8 @@ class TZlibTransport(TTransportBase, CReadableTransport):
         """Internal method for setting up the zlib compression and
         decompression objects.
         """
-        self._zcomp_read = zlib.decompressobj()
-        self._zcomp_write = zlib.compressobj(self.compresslevel)
+        self._zcomp_read = zlib.decompressobj(-15)
+        self._zcomp_write = zlib.compressobj(self.compresslevel, zlib.DEFLATED, -15)
 
     def getCompRatio(self):
         """Get the current measured compression ratios (in,out) from

@@ -84,6 +84,7 @@ private:
 
   long stringLimit_;
   long containerLimit_;
+protected:
   EncodeBuffer* output_;
   DecodeBuffer input_;
 };

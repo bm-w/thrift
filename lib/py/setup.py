@@ -69,6 +69,7 @@ def run_setup(with_binary):
                               'src/ext/types.cpp',
                               'src/ext/binary.cpp',
                               'src/ext/compact.cpp',
+                              'src/ext/tiny.cpp',
                           ],
                           include_dirs=include_dirs,
                           )

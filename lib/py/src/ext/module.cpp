@@ -21,6 +21,7 @@
 #include "types.h"
 #include "binary.h"
 #include "compact.h"
+#include "tiny.h"
 #include <limits>
 #include <stdint.h>
 
@@ -136,11 +137,21 @@ static PyObject* decode_compact(PyObject*, PyObject* args) {
   return decode_impl<CompactProtocol>(args);
 }
 
+static PyObject* encode_tiny(PyObject*, PyObject* args) {
+  return encode_impl<TinyProtocol>(args);
+}
+
+static PyObject* decode_tiny(PyObject*, PyObject* args) {
+  return decode_impl<TinyProtocol>(args);
+}
+
 static PyMethodDef ThriftFastBinaryMethods[] = {
     {"encode_binary", encode_binary, METH_VARARGS, ""},
     {"decode_binary", decode_binary, METH_VARARGS, ""},
     {"encode_compact", encode_compact, METH_VARARGS, ""},
     {"decode_compact", decode_compact, METH_VARARGS, ""},
+    {"encode_tiny", encode_tiny, METH_VARARGS, ""},
+    {"decode_tiny", decode_tiny, METH_VARARGS, ""},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 

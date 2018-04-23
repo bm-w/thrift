@@ -1,6 +1,6 @@
 #!/bin/sh
 
-mkdir ~/thrift/build-xcode
-cd ~/thrift/build-xcode
+mkdir -p build-xcode
+cd build-xcode
 cmake -G Xcode ..
 xcodebuild

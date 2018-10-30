@@ -410,61 +410,64 @@ void t_lua_generator::generate_lua_struct_definition(ofstream &out,
  */
 void t_lua_generator::generate_lua_struct_reader(ofstream& out,
                                                   t_struct* tstruct) {
-  const vector<t_field*>& fields = tstruct->get_members();
-  vector<t_field*>::const_iterator f_iter;
+const vector<t_field*>& fields = tstruct->get_members();
+   vector<t_field*>::const_iterator f_iter;
 
-  // function
-  indent(out) << endl << endl
-    << "function " << tstruct->get_name() << ":read(iprot)" << endl;
-  indent_up();
+   // function
+   indent(out) << endl << endl;
+     indent(out) << "function " << tstruct->get_name() << ":read(iprot)" << endl;
+   indent_up();
 
-  indent(out) << "iprot:readStructBegin()" << endl;
+   indent(out) << "local mapping = {" << endl;
+     indent_up();
+     for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
+       indent(out) << "[" << (*f_iter)->get_key() << "] = function(fname, ftype)" << endl;
+       indent_up();
+         indent(out) << "if ftype == " << type_to_enum((*f_iter)->get_type()) << " then" << endl;
+         indent_up();
+           // Read field contents
+           generate_deserialize_field(out, *f_iter, "self.");
+         indent_down();
+         indent(out) << "else" << endl;
+         indent(out) << "  iprot:skip(ftype)" << endl;
+         indent(out) << "end" << endl;
+       indent_down();
+       indent(out) << "end," << endl;
+     }
+     indent_down();
+   indent(out) << "}" << endl << endl;
 
-  // while: Read in fields
-  indent(out) << "while true do" << endl;
-    indent_up();
+   indent(out) << "iprot:readStructBegin()" << endl;
 
-    // if: Check what to read
-    indent(out) << "local fname, ftype, fid = iprot:readFieldBegin()" << endl;
-    indent(out) << "if ftype == TType.STOP then" << endl;
-      indent_up();
-      indent(out) << "break" << endl;
+   // while: Read in fields
+   indent(out) << "while true do" << endl;
+     indent_up();
 
-      for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
-        indent_down();
-        indent(out)
-          << "elseif fid == " << (*f_iter)->get_key() << " then" << endl;
-          indent_up();
-          indent(out)
-            << "if ftype == " << type_to_enum((*f_iter)->get_type())
-            << " then" << endl;
-            indent_up();
+     // if: Check what to read
+     indent(out) << "local fname, ftype, fid = iprot:readFieldBegin()" << endl;
+     indent(out) << "if ftype == TType.STOP then" << endl;
+       indent_up();
+         indent(out) << "break" << endl;
+       indent_down();
+       indent(out) << "elseif mapping[fid] then" << endl;
+       indent_up();
+         indent(out) << "mapping[fid](fname, ftype)" << endl;
+     // end if
+     indent_down();
+     indent(out) << "else" << endl;
+     indent(out) << "  iprot:skip(ftype)" << endl;
+     indent(out) << "end" << endl;
+     indent(out) << "iprot:readFieldEnd()" << endl;
 
-            // Read field contents
-            generate_deserialize_field(out, *f_iter, "self.");
+   // end while
+     indent_down();
+   indent(out) << "end" << endl;
+   indent(out) << "iprot:readStructEnd()" << endl;
 
-            indent_down();
-          indent(out) << "else" << endl;
-          indent(out) << "  iprot:skip(ftype)" << endl;
-          indent(out) << "end" << endl;
-      }
-
-    // end if
-    indent_down();
-    indent(out) << "else" << endl;
-    indent(out) << "  iprot:skip(ftype)" << endl;
-    indent(out) << "end" << endl;
-    indent(out) << "iprot:readFieldEnd()" << endl;
-
-  // end while
-    indent_down();
-  indent(out) << "end" << endl;
-  indent(out) << "iprot:readStructEnd()" << endl;
-
-  // end function
-  indent_down();
-  indent(out);
-  out << "end";
+   // end function
+   indent_down();
+   indent(out);
+   out << "end";
 }
 
 /**

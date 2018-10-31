@@ -45,6 +45,8 @@ class t_lua_generator : public t_oop_generator {
 
     iter = parsed_options.find("omit_requires");
     gen_requires_ = (iter == parsed_options.end());
+    iter = parsed_options.find("doc");
+    gen_doc_ = (iter != parsed_options.end());
 
     out_dir_base_ = "gen-lua";
   }
@@ -73,6 +75,11 @@ class t_lua_generator : public t_oop_generator {
    * True iff we should generate lua require statements.
    */
   bool gen_requires_;
+
+  /**
+   * True if we should generate lua documentation.
+   */
+  bool gen_doc_;
 
   /**
    * Struct-level generation functions
@@ -142,6 +149,8 @@ class t_lua_generator : public t_oop_generator {
   std::string function_signature(t_function* tfunction, std::string prefix="");
   std::string argument_list(t_struct* tstruct, std::string prefix="");
   std::string type_to_enum(t_type* ttype);
+  std::string type_name(t_type* ttype, bool in_typedef=false, bool arg=false);
+  std::string base_type_name(t_base_type::t_base tbase);
   static std::string get_namespace(const t_program* program);
 
   std::string autogen_comment() {
@@ -197,7 +206,15 @@ void t_lua_generator::close_generator() {
  */
 void t_lua_generator::generate_typedef(t_typedef* ttypedef) {
   f_types_
-    << endl << endl << indent()
+    << endl << endl << indent();
+
+  if (gen_doc_) {
+    f_types_
+      << "---@class " << ttypedef->get_symbolic() << " : " << ttypedef->get_type()->get_name()
+      << endl << indent();
+  }
+
+  f_types_
     << ttypedef->get_symbolic() << " = "
     << ttypedef->get_type()->get_name();
 }
@@ -206,7 +223,13 @@ void t_lua_generator::generate_typedef(t_typedef* ttypedef) {
  * Generates code for an enumerated type (table)
  */
 void t_lua_generator::generate_enum(t_enum* tenum) {
-  f_types_ << endl << endl << tenum->get_name() << " = {" << endl;
+  f_types_ << endl << endl;
+  if (gen_doc_) {
+    f_types_
+      << "---@class " << tenum->get_name() << endl;
+  }
+  f_types_
+    << tenum->get_name() << " = {" << endl;
 
   vector<t_enum_value*> constants = tenum->get_constants();
   vector<t_enum_value*>::iterator c_iter;
@@ -377,7 +400,18 @@ void t_lua_generator::generate_lua_struct_definition(ofstream &out,
   vector<t_field*>::const_iterator m_iter;
   const vector<t_field*>& members = tstruct->get_members();
 
-  indent(out) << endl << endl << tstruct->get_name();
+  if (gen_doc_ && !is_exception) {
+    indent(out) << endl << endl << "---@class " << tstruct->get_name() << endl;
+    for (m_iter = members.begin(); m_iter != members.end();) {
+      indent(out);
+      out << "---@field " << (*m_iter)->get_name() << " " << type_name((*m_iter)->get_type()) << endl;
+      ++m_iter;
+    }
+  } else {
+    indent(out) << endl << endl;
+  }
+
+  indent(out) << tstruct->get_name();
   if (is_exception) {
     out << " = TException:new{" << endl <<
       indent() << "  __type = '" << tstruct->get_name() << "'";
@@ -1227,4 +1261,70 @@ string t_lua_generator::type_to_enum(t_type* type) {
   throw "INVALID TYPE IN type_to_enum: " + type->get_name();
 }
 
-THRIFT_REGISTER_GENERATOR(lua, "Lua", "")
+/**
+ * Returns a lua type name
+ *
+ * @param ttype The type
+ * @return String of the type name, i.e. table<string, string>
+ */
+string t_lua_generator::type_name(t_type* ttype, bool in_typedef, bool arg) {
+  if (ttype->is_base_type()) {
+    string bname = base_type_name(((t_base_type*)ttype)->get_base());
+    return bname;
+  }
+
+  if (ttype->is_container()) {
+    string cname;
+
+    t_container* tcontainer = (t_container*) ttype;
+    if (ttype->is_map()) {
+      t_map* tmap = (t_map*) ttype;
+      cname = "table<" +
+        type_name(tmap->get_key_type(), in_typedef) + ", " +
+        type_name(tmap->get_val_type(), in_typedef) + "> ";
+    } else if (ttype->is_set()) {
+      t_set* tset = (t_set*) ttype;
+      cname = "" + type_name(tset->get_elem_type(), in_typedef) + "[] @set ";
+    } else if (ttype->is_list()) {
+      t_list* tlist = (t_list*) ttype;
+      cname = "" + type_name(tlist->get_elem_type(), in_typedef) + "[] ";
+    }
+
+    return cname;
+  }
+
+  string pname = ttype->get_name();
+  return pname;
+}
+
+/**
+ * Returns the lua type that corresponds to the thrift type.
+ *
+ * @param tbase The base type
+ * @return Explicit lua type, i.e. "string"
+ */
+string t_lua_generator::base_type_name(t_base_type::t_base tbase) {
+  switch (tbase) {
+  case t_base_type::TYPE_VOID:
+    return "";
+  case t_base_type::TYPE_STRING:
+    return "string";
+  case t_base_type::TYPE_BOOL:
+    return "boolean";
+  case t_base_type::TYPE_BYTE:
+    return "byte";
+  case t_base_type::TYPE_I16:
+    return "number";
+  case t_base_type::TYPE_I32:
+    return "number";
+  case t_base_type::TYPE_I64:
+    return "number";
+  case t_base_type::TYPE_DOUBLE:
+    return "number";
+  default:
+    throw "compiler error: no lua base type name for base type " + t_base_type::t_base_name(tbase);
+  }
+}
+
+THRIFT_REGISTER_GENERATOR(lua, "Lua",
+"    doc:          Generate comments to help editor type inference.\n")

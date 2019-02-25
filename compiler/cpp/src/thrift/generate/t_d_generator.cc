@@ -71,7 +71,7 @@ public:
   }
 
 protected:
-  virtual void init_generator() {
+  void init_generator() override {
     // Make output directory
     MKDIR(get_out_dir().c_str());
 
@@ -102,23 +102,23 @@ protected:
 
     // Include type modules from other imported programs.
     const vector<t_program*>& includes = program_->get_includes();
-    for (size_t i = 0; i < includes.size(); ++i) {
-      f_types_ << "public import " << render_package(*(includes[i])) << includes[i]->get_name()
+    for (auto include : includes) {
+      f_types_ << "public import " << render_package(*include) << include->get_name()
                << "_types;" << endl;
     }
     if (!includes.empty())
       f_types_ << endl;
   }
 
-  virtual void close_generator() {
+  void close_generator() override {
     // Close output file
     f_types_.close();
   }
 
-  virtual void generate_consts(std::vector<t_const*> consts) {
+  void generate_consts(std::vector<t_const*> consts) override {
     if (!consts.empty()) {
       string f_consts_name = package_dir_ + program_name_ + "_constants.d";
-      ofstream f_consts;
+      ofstream_with_content_based_conditional_update f_consts;
       f_consts.open(f_consts_name.c_str());
 
       f_consts << autogen_comment() << "module " << render_package(*program_) << program_name_
@@ -159,13 +159,13 @@ protected:
     }
   }
 
-  virtual void generate_typedef(t_typedef* ttypedef) {
+  void generate_typedef(t_typedef* ttypedef) override {
     this->emit_doc(ttypedef, f_types_);
     f_types_ << indent() << "alias " << render_type_name(ttypedef->get_type()) << " "
              << ttypedef->get_symbolic() << ";" << endl << endl;
   }
 
-  virtual void generate_enum(t_enum* tenum) {
+  void generate_enum(t_enum* tenum) override {
     vector<t_enum_value*> constants = tenum->get_constants();
 
     this->emit_doc(tenum, f_types_);
@@ -188,20 +188,20 @@ protected:
     f_types_ << endl;
   }
 
-  virtual void generate_struct(t_struct* tstruct) {
+  void generate_struct(t_struct* tstruct) override {
     print_struct_definition(f_types_, tstruct, false);
   }
 
-  virtual void generate_xception(t_struct* txception) {
+  void generate_xception(t_struct* txception) override {
     print_struct_definition(f_types_, txception, true);
   }
 
-  virtual void generate_service(t_service* tservice) {
+  void generate_service(t_service* tservice) override {
     string svc_name = tservice->get_name();
 
     // Service implementation file includes
     string f_servicename = package_dir_ + svc_name + ".d";
-    std::ofstream f_service;
+    ofstream_with_content_based_conditional_update f_service;
     f_service.open(f_servicename.c_str());
     f_service << autogen_comment() << "module " << render_package(*program_) << svc_name << ";"
               << endl << endl;
@@ -339,13 +339,13 @@ protected:
 
     // Server skeleton generation.
     string f_skeletonname = package_dir_ + svc_name + "_server.skeleton.d";
-    std::ofstream f_skeleton;
+    ofstream_with_content_based_conditional_update f_skeleton;
     f_skeleton.open(f_skeletonname.c_str());
     print_server_skeleton(f_skeleton, tservice);
     f_skeleton.close();
   }
 
-  void emit_doc(t_doc *doc, std::ofstream& out) {
+  void emit_doc(t_doc *doc, std::ostream& out) {
     if (!doc->has_doc()) {
       return;
     }
@@ -557,8 +557,8 @@ private:
 
         const vector<t_field*>& fields = ((t_struct*)type)->get_members();
         vector<t_field*>::const_iterator f_iter;
-        const map<t_const_value*, t_const_value*>& val = value->get_map();
-        map<t_const_value*, t_const_value*>::const_iterator v_iter;
+        const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
+        map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
         for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
           t_type* field_type = NULL;
           for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
@@ -576,8 +576,8 @@ private:
       } else if (type->is_map()) {
         t_type* ktype = ((t_map*)type)->get_key_type();
         t_type* vtype = ((t_map*)type)->get_val_type();
-        const map<t_const_value*, t_const_value*>& val = value->get_map();
-        map<t_const_value*, t_const_value*>::const_iterator v_iter;
+        const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
+        map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
         for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
           string key = render_const_value(ktype, v_iter->first);
           string val = render_const_value(vtype, v_iter->second);
@@ -733,8 +733,8 @@ private:
    * File streams, stored here to avoid passing them as parameters to every
    * function.
    */
-  ofstream f_types_;
-  ofstream f_header_;
+  ofstream_with_content_based_conditional_update f_types_;
+  ofstream_with_content_based_conditional_update f_header_;
 
   string package_dir_;
 };

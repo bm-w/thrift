@@ -27,11 +27,12 @@ all-local: deps
 
 precross: deps stubs
 
+# TODO: Lint nodejs lib and gen-code as part of build
 check: deps
-	cd $(top_srcdir) && $(NPM) test && cd lib/nodejs
+	cd $(top_srcdir) && $(NPM) test && $(NPM) run lint-tests && cd lib/nodejs
 
 clean-local:
-	$(RM) -r test/gen-nodejs
+	$(RM) -r test/gen-*
 	$(RM) -r $(top_srcdir)/node_modules
 
 EXTRA_DIST = \

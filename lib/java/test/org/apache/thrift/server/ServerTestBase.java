@@ -234,7 +234,8 @@ public abstract class ServerTestBase extends TestCase {
         x.message = arg;
         throw x;
       } else if ("TException".equals(arg)) {
-        throw new TException(arg);
+        // Unspecified exception should yield a TApplicationException on client side
+        throw new RuntimeException(arg);
       } else {
         Xtruct result = new Xtruct();
         result.string_thing = arg;
@@ -266,7 +267,7 @@ public abstract class ServerTestBase extends TestCase {
       System.out.println("testOneway(" + Integer.toString(sleepFor) +
                          ") => sleeping...");
       try {
-        Thread.sleep(sleepFor * 1000);
+        Thread.sleep(sleepFor * SLEEP_DELAY);
         System.out.println("Done sleeping!");
       } catch (InterruptedException ie) {
         throw new RuntimeException(ie);
@@ -281,6 +282,7 @@ public abstract class ServerTestBase extends TestCase {
   public static final String HOST = "localhost";
   public static final int PORT = Integer.valueOf(
     System.getProperty("test.port", "9090"));
+  protected static final int SLEEP_DELAY = 1000;
   protected static final int SOCKET_TIMEOUT = 1500;
   private static final Xtruct XSTRUCT = new Xtruct("Zero", (byte) 1, -3, -5);
   private static final Xtruct2 XSTRUCT2 = new Xtruct2((byte)1, XSTRUCT, 5);
@@ -387,7 +389,7 @@ public abstract class ServerTestBase extends TestCase {
   public void testIt() throws Exception {
 
     for (TProtocolFactory protoFactory : getProtocols()) {
-      TProcessor processor = useAsyncProcessor() ? new ThriftTest.AsyncProcessor(new AsyncTestHandler()) : new ThriftTest.Processor(new TestHandler());
+      TProcessor processor = useAsyncProcessor() ? new ThriftTest.AsyncProcessor<AsyncTestHandler>(new AsyncTestHandler()) : new ThriftTest.Processor<TestHandler>(new TestHandler());
 
       startServer(processor, protoFactory);
 
@@ -536,7 +538,7 @@ public abstract class ServerTestBase extends TestCase {
   public void testTransportFactory() throws Exception {
     for (TProtocolFactory protoFactory : getProtocols()) {
       TestHandler handler = new TestHandler();
-      ThriftTest.Processor processor = new ThriftTest.Processor(handler);
+      ThriftTest.Processor<TestHandler> processor = new ThriftTest.Processor<TestHandler>(handler);
 
       final CallCountingTransportFactory factory = new CallCountingTransportFactory(new TFramedTransport.Factory());
 
@@ -681,13 +683,15 @@ public abstract class ServerTestBase extends TestCase {
         x.errorCode = 1001;
         x.message = arg;
         // throw and onError yield the same result.
-        // resultHandler.onError(x);
-        // return;
-        throw x;
-      } else if ("TException".equals(arg)) {
-        // throw new TException(arg);
-        resultHandler.onError(new TException(arg));
+        // throw x;
+        resultHandler.onError(x);
         return;
+      } else if ("TException".equals(arg)) {
+        // throw and onError yield the same result.
+        // resultHandler.onError(new TException(arg));
+        // return;
+        // Unspecified exception should yield a TApplicationException on client side
+        throw new RuntimeException(arg);
       }
       resultHandler.onComplete(null);
     }

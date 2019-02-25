@@ -23,6 +23,7 @@ THRIFT_FILES = $(wildcard test/*.thrift) \
 		  $(THRIFT_OMIT_FILE) \
 		  ../../test/ConstantsDemo.thrift \
 		  ../../test/NameConflictTest.thrift \
+		  ../../test/DoubleConstantsTest.thrift \
 		  ../../test/ThriftTest.thrift
 
 if ERLANG_OTP16
@@ -66,22 +67,33 @@ install: all
 	done
 
 uninstall:
-	rm -rf $(DESTDIR)$(ERLANG_INSTALL_LIB_DIR_thrift)
+	$(RM) -rf $(DESTDIR)$(ERLANG_INSTALL_LIB_DIR_thrift)
 
-clean:
-	rm -f .generated
-	rm -rf test/gen-erl/
-	rm -f $(THRIFT_OMIT_FILE)
+clean-local:
 	$(REBAR) clean
+	$(RM)    .generated
+	$(RM) -r .rebar/
+	$(RM) -r deps/
+	$(RM) -r test/gen-erl/
+	$(RM)    $(THRIFT_OMIT_FILE)
 
 maintainer-clean-local:
-	rm -rf ebin
+	$(RM) -r ebin/
+
+dist-hook:
+	$(RM)    $(distdir)/.generated
+	$(RM) -r $(distdir)/.rebar/
+	$(RM) -r $(distdir)/deps/
+	$(RM) -r $(distdir)/ebin/
+	$(RM) -r $(distdir)/test/gen-erl/
+	$(RM)    $(distdir)/$(THRIFT_OMIT_FILE)
 
 EXTRA_DIST = \
 	include \
 	src \
 	coding_standards.md \
 	rebar.config \
+	rebar.config.script \
 	rebar.test.config \
 	test \
 	README.md

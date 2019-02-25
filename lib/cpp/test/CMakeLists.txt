@@ -1,4 +1,4 @@
-﻿#
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements. See the NOTICE file
 # distributed with this work for additional information
@@ -17,14 +17,13 @@
 # under the License.
 #
 
-include_directories(SYSTEM "${Boost_INCLUDE_DIRS}")
+# Unit tests still require boost
+include(BoostMacros)
+REQUIRE_BOOST_HEADERS()
+set(BOOST_COMPONENTS chrono date_time filesystem random thread unit_test_framework)
+REQUIRE_BOOST_LIBRARIES(BOOST_COMPONENTS)
 
-add_definitions("-D__STDC_FORMAT_MACROS")
-add_definitions("-D__STDC_LIMIT_MACROS")
-
-if (WITH_DYN_LINK_TEST)
-    add_definitions( -DBOOST_TEST_DYN_LINK )
-endif()
+include(ThriftMacros)
 
 # Make sure gen-cpp files can be included
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
@@ -43,6 +42,10 @@ set(testgencpp_SOURCES
     gen-cpp/Recursive_types.h
     gen-cpp/ThriftTest_types.cpp
     gen-cpp/ThriftTest_types.h
+    gen-cpp/OneWayTest_types.cpp
+    gen-cpp/OneWayTest_types.h
+    gen-cpp/OneWayService.cpp
+    gen-cpp/OneWayService.h
     gen-cpp/TypedefTest_types.cpp
     gen-cpp/TypedefTest_types.h
     ThriftTest_extras.cpp
@@ -71,6 +74,7 @@ target_link_libraries(Benchmark testgencpp)
 
 set(UnitTest_SOURCES
     UnitTestMain.cpp
+    OneWayHTTPTest.cpp
     TMemoryBufferTest.cpp
     TBufferBaseTest.cpp
     Base64Test.cpp
@@ -79,11 +83,6 @@ set(UnitTest_SOURCES
     TServerSocketTest.cpp
     TServerTransportTest.cpp
 )
-
-if(NOT WITH_BOOSTTHREADS AND NOT WITH_STDTHREADS AND NOT MSVC AND NOT MINGW)
-    list(APPEND UnitTest_SOURCES concurrency/MutexTest.cpp)
-    list(APPEND UnitTest_SOURCES concurrency/RWMutexStarveTest.cpp)
-endif()
 
 add_executable(UnitTests ${UnitTest_SOURCES})
 target_link_libraries(UnitTests testgencpp ${Boost_LIBRARIES})
@@ -337,18 +336,6 @@ add_test(NAME SecurityTest COMMAND SecurityTest -- "${CMAKE_CURRENT_SOURCE_DIR}/
 
 endif()
 
-if(WITH_QT4)
-set(CMAKE_AUTOMOC ON)
-find_package(Qt4 REQUIRED COMPONENTS QtTest)
-set(TQTcpServerTest_SOURCES
-    qt/TQTcpServerTest.cpp
-)
-add_executable(TQTcpServerTest ${TQTcpServerTest_SOURCES})
-target_link_libraries(TQTcpServerTest testgencpp_cob thriftqt Qt4::QtTest)
-LINK_AGAINST_THRIFT_LIBRARY(TQTcpServerTest thrift)
-add_test(NAME TQTcpServerTest COMMAND TQTcpServerTest)
-endif()
-
 if(WITH_QT5)
 add_subdirectory(qt)
 endif()
@@ -392,6 +379,10 @@ add_custom_command(OUTPUT gen-cpp/Service.cpp gen-cpp/StressTest_types.cpp
 
 add_custom_command(OUTPUT gen-cpp/SecondService.cpp gen-cpp/ThriftTest_constants.cpp gen-cpp/ThriftTest.cpp gen-cpp/ThriftTest_types.cpp gen-cpp/ThriftTest_types.h
     COMMAND ${THRIFT_COMPILER} --gen cpp ${PROJECT_SOURCE_DIR}/test/ThriftTest.thrift
+)
+
+add_custom_command(OUTPUT gen-cpp/OneWayService.cpp gen-cpp/OneWayTest_constants.cpp gen-cpp/OneWayTest_types.h gen-cpp/OneWayService.h gen-cpp/OneWayTest_constants.h gen-cpp/OneWayTest_types.cpp
+    COMMAND ${THRIFT_COMPILER} --gen cpp ${CMAKE_CURRENT_SOURCE_DIR}/OneWayTest.thrift
 )
 
 add_custom_command(OUTPUT gen-cpp/ChildService.cpp gen-cpp/ChildService.h gen-cpp/ParentService.cpp gen-cpp/ParentService.h gen-cpp/proc_types.cpp gen-cpp/proc_types.h

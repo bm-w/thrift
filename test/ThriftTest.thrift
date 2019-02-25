@@ -22,22 +22,22 @@
  */
 
 namespace c_glib TTest
-namespace java thrift.test
 namespace cpp thrift.test
-namespace rb Thrift.Test
-namespace perl ThriftTest
 namespace csharp Thrift.Test
+namespace delphi Thrift.Test
+namespace go thrifttest
+namespace java thrift.test
 namespace js ThriftTest
-namespace st ThriftTest
+namespace lua ThriftTest
+namespace netcore ThriftTest
+namespace netstd ThriftTest
+namespace perl ThriftTest
+namespace php ThriftTest
 namespace py ThriftTest
 namespace py.twisted ThriftTest
-namespace go thrifttest
-namespace php ThriftTest
-namespace delphi Thrift.Test
-namespace cocoa ThriftTest
-namespace lua ThriftTest
+namespace rb Thrift.Test
+namespace st ThriftTest
 namespace xsd test (uri = 'http://thrift.apache.org/ns/ThriftTest')
-namespace netcore ThriftAsync.Test
 
 // Presence of namespaces and sub-namespaces for which there is
 // no generator should compile with warnings only
@@ -196,7 +196,7 @@ service ThriftTest
    * @return binary  - returns the binary 'thing'
    */
   binary       testBinary(1: binary thing),
-  
+
   /**
    * Prints 'testStruct("{%s}")' where thing has been formatted into a string of comma separated values
    * @param Xtruct thing - the Xtruct to print

@@ -42,7 +42,7 @@ CLIENT_CERT = os.path.join(ROOT_DIR, 'test', 'keys', 'client_v3.crt')
 CLIENT_KEY = os.path.join(ROOT_DIR, 'test', 'keys', 'client_v3.key')
 CLIENT_CA = os.path.join(ROOT_DIR, 'test', 'keys', 'CA.pem')
 
-TEST_CIPHERS = 'DES-CBC3-SHA'
+TEST_CIPHERS = 'DES-CBC3-SHA:ECDHE-RSA-AES128-GCM-SHA256'
 
 
 class ServerAcceptor(threading.Thread):
@@ -95,6 +95,11 @@ class ServerAcceptor(threading.Thread):
         self._client_accepted.wait()
         return self._client
 
+    def close(self):
+        if self._client:
+            self._client.close()
+        self._server.close()
+
 
 # Python 2.6 compat
 class AssertRaises(object):
@@ -125,9 +130,7 @@ class TSSLSocketTest(unittest.TestCase):
             client = TSSLSocket(host, port, unix_socket=path, **client_kwargs)
             yield acc, client
         finally:
-            if acc.client:
-                acc.client.close()
-            server.close()
+            acc.close()
 
     def _assert_connection_failure(self, server, path=None, **client_args):
         logging.disable(logging.CRITICAL)
@@ -210,6 +213,7 @@ class TSSLSocketTest(unittest.TestCase):
             return
         fd, path = tempfile.mkstemp()
         os.close(fd)
+        os.unlink(path)
         try:
             server = self._server_socket(unix_socket=path, keyfile=SERVER_KEY, certfile=SERVER_CERT)
             self._assert_connection_success(server, path=path, cert_reqs=ssl.CERT_NONE)

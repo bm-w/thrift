@@ -31,8 +31,8 @@ namespace Thrift
         {
         }
 
-        public TException( string message)
-            : base(message)
+        public TException(string message, Exception inner = null)
+            : base(message, inner)
         {
         }
 

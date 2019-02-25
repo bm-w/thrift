@@ -33,7 +33,7 @@
 #include "thrift/generate/t_oop_generator.h"
 
 using std::map;
-using std::ofstream;
+using std::ostream;
 using std::ostringstream;
 using std::string;
 using std::stringstream;
@@ -103,23 +103,23 @@ public:
   }
 
   /* initialization and destruction */
-  void init_generator();
-  void close_generator();
+  void init_generator() override;
+  void close_generator() override;
 
   /* generation functions */
-  void generate_typedef(t_typedef* ttypedef);
-  void generate_enum(t_enum* tenum);
-  void generate_consts(vector<t_const*> consts);
-  void generate_struct(t_struct* tstruct);
-  void generate_service(t_service* tservice);
-  void generate_xception(t_struct* tstruct);
+  void generate_typedef(t_typedef* ttypedef) override;
+  void generate_enum(t_enum* tenum) override;
+  void generate_consts(vector<t_const*> consts) override;
+  void generate_struct(t_struct* tstruct) override;
+  void generate_service(t_service* tservice) override;
+  void generate_xception(t_struct* tstruct) override;
 
 private:
   /* file streams */
-  ofstream f_types_;
-  ofstream f_types_impl_;
-  ofstream f_header_;
-  ofstream f_service_;
+  ofstream_with_content_based_conditional_update f_types_;
+  ofstream_with_content_based_conditional_update f_types_impl_;
+  ofstream_with_content_based_conditional_update f_header_;
+  ofstream_with_content_based_conditional_update f_service_;
 
   /* namespace variables */
   string nspace;
@@ -145,8 +145,8 @@ private:
                        bool pointer = false,
                        bool constant = false,
                        bool reference = false);
-  void declare_local_variable(ofstream& out, t_type* ttype, string& base_name, bool for_hash_table);
-  void declore_local_variable_for_write(ofstream& out, t_type* ttype, string& base_name);
+  void declare_local_variable(ostream& out, t_type* ttype, string& base_name, bool for_hash_table);
+  void declore_local_variable_for_write(ostream& out, t_type* ttype, string& base_name);
 
   /* generation functions */
   void generate_const_initializer(string name,
@@ -159,51 +159,51 @@ private:
   void generate_service_processor(t_service* tservice);
   void generate_service_server(t_service* tservice);
   void generate_object(t_struct* tstruct);
-  void generate_struct_writer(ofstream& out,
+  void generate_struct_writer(ostream& out,
                               t_struct* tstruct,
                               string this_name,
                               string this_get = "",
                               bool is_function = true);
-  void generate_struct_reader(ofstream& out,
+  void generate_struct_reader(ostream& out,
                               t_struct* tstruct,
                               string this_name,
                               string this_get = "",
                               bool is_function = true);
 
-  void generate_serialize_field(ofstream& out,
+  void generate_serialize_field(ostream& out,
                                 t_field* tfield,
                                 string prefix,
                                 string suffix,
                                 int error_ret);
-  void generate_serialize_struct(ofstream& out, t_struct* tstruct, string prefix, int error_ret);
-  void generate_serialize_container(ofstream& out, t_type* ttype, string prefix, int error_ret);
-  void generate_serialize_map_element(ofstream& out,
+  void generate_serialize_struct(ostream& out, t_struct* tstruct, string prefix, int error_ret);
+  void generate_serialize_container(ostream& out, t_type* ttype, string prefix, int error_ret);
+  void generate_serialize_map_element(ostream& out,
                                       t_map* tmap,
                                       string key,
                                       string value,
                                       int error_ret);
-  void generate_serialize_set_element(ofstream& out, t_set* tset, string element, int error_ret);
-  void generate_serialize_list_element(ofstream& out,
+  void generate_serialize_set_element(ostream& out, t_set* tset, string element, int error_ret);
+  void generate_serialize_list_element(ostream& out,
                                        t_list* tlist,
                                        string list,
                                        string index,
                                        int error_ret);
 
-  void generate_deserialize_field(ofstream& out,
+  void generate_deserialize_field(ostream& out,
                                   t_field* tfield,
                                   string prefix,
                                   string suffix,
                                   int error_ret,
                                   bool allocate = true);
-  void generate_deserialize_struct(ofstream& out,
+  void generate_deserialize_struct(ostream& out,
                                    t_struct* tstruct,
                                    string prefix,
                                    int error_ret,
                                    bool allocate = true);
-  void generate_deserialize_container(ofstream& out, t_type* ttype, string prefix, int error_ret);
-  void generate_deserialize_map_element(ofstream& out, t_map* tmap, string prefix, int error_ret);
-  void generate_deserialize_set_element(ofstream& out, t_set* tset, string prefix, int error_ret);
-  void generate_deserialize_list_element(ofstream& out,
+  void generate_deserialize_container(ostream& out, t_type* ttype, string prefix, int error_ret);
+  void generate_deserialize_map_element(ostream& out, t_map* tmap, string prefix, int error_ret);
+  void generate_deserialize_set_element(ostream& out, t_set* tset, string prefix, int error_ret);
+  void generate_deserialize_list_element(ostream& out,
                                          t_list* tlist,
                                          string prefix,
                                          string index,
@@ -250,20 +250,28 @@ void t_c_glib_generator::init_generator() {
 
   /* include other thrift includes */
   const vector<t_program*>& includes = program_->get_includes();
-  for (size_t i = 0; i < includes.size(); ++i) {
-    f_types_ << "/* other thrift includes */" << endl << "#include \"" << this->nspace_lc
-             << initial_caps_to_underscores(includes[i]->get_name()) << "_types.h\"" << endl;
+  if (!includes.empty()) {
+    f_types_ << "/* other thrift includes */" << endl;
+
+    for (auto include : includes) {
+      const std::string& include_nspace = include->get_namespace("c_glib");
+      std::string include_nspace_prefix =
+        include_nspace.empty() ? "" : initial_caps_to_underscores(include_nspace) + "_";
+
+      f_types_ << "#include \"" << include_nspace_prefix
+               << initial_caps_to_underscores(include->get_name()) << "_types.h\"" << endl;
+    }
+    f_types_ << endl;
   }
-  f_types_ << endl;
 
   /* include custom headers */
   const vector<string>& c_includes = program_->get_c_includes();
   f_types_ << "/* custom thrift includes */" << endl;
-  for (size_t i = 0; i < c_includes.size(); ++i) {
-    if (c_includes[i][0] == '<') {
-      f_types_ << "#include " << c_includes[i] << endl;
+  for (const auto & c_include : c_includes) {
+    if (c_include[0] == '<') {
+      f_types_ << "#include " << c_include << endl;
     } else {
-      f_types_ << "#include \"" << c_includes[i] << "\"" << endl;
+      f_types_ << "#include \"" << c_include << "\"" << endl;
     }
   }
   f_types_ << endl;
@@ -579,7 +587,7 @@ string t_c_glib_generator::type_name(t_type* ttype, bool in_typedef, bool is_con
       // TODO: discuss whether or not to implement TSet, THashSet or GHashSet
       cname = "GHashTable";
     } else if (ttype->is_list()) {
-      t_type* etype = ((t_list*)ttype)->get_elem_type();
+      t_type* etype = get_true_type(((t_list*)ttype)->get_elem_type());
       if (etype->is_void()) {
         throw std::runtime_error("compiler error: list element type cannot be void");
       }
@@ -602,7 +610,8 @@ string t_c_glib_generator::type_name(t_type* ttype, bool in_typedef, bool is_con
   }
 
   // check for a namespace
-  string pname = this->nspace + ttype->get_name();
+  t_program* tprogram = ttype->get_program();
+  string pname = (tprogram ? tprogram->get_namespace("c_glib") : "") + ttype->get_name();
 
   if (is_complex_type(ttype)) {
     pname += " *";
@@ -997,8 +1006,8 @@ void t_c_glib_generator::generate_const_initializer(string name,
   if (type->is_struct() || type->is_xception()) {
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
+    map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
     ostringstream initializers;
 
     // initialize any constants that may be referenced by this initializer
@@ -1171,8 +1180,8 @@ void t_c_glib_generator::generate_const_initializer(string name,
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
+    map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
     ostringstream initializers;
     ostringstream appenders;
 
@@ -1831,8 +1840,10 @@ void t_c_glib_generator::generate_service_handler(t_service* tservice) {
   string service_name_lc = to_lower_case(initial_caps_to_underscores(service_name_));
   string service_name_uc = to_upper_case(service_name_lc);
 
-  string class_name = this->nspace + service_name_ + "Handler";
-  string class_name_lc = to_lower_case(initial_caps_to_underscores(class_name));
+  string service_handler_name = service_name_ + "Handler";
+
+  string class_name = this->nspace + service_handler_name;
+  string class_name_lc = this->nspace_lc + initial_caps_to_underscores(service_handler_name);
   string class_name_uc = to_upper_case(class_name_lc);
 
   string parent_class_name;
@@ -2051,8 +2062,10 @@ void t_c_glib_generator::generate_service_processor(t_service* tservice) {
   string service_name_lc = to_lower_case(initial_caps_to_underscores(service_name_));
   string service_name_uc = to_upper_case(service_name_lc);
 
-  string class_name = this->nspace + service_name_ + "Processor";
-  string class_name_lc = to_lower_case(initial_caps_to_underscores(class_name));
+  string service_processor_name = service_name_ + "Processor";
+
+  string class_name = this->nspace + service_processor_name;
+  string class_name_lc = this->nspace_lc + initial_caps_to_underscores(service_processor_name);
   string class_name_uc = to_upper_case(class_name_lc);
 
   string parent_class_name;
@@ -2784,7 +2797,7 @@ void t_c_glib_generator::generate_object(t_struct* tstruct) {
   string name_uc = to_upper_case(name_u);
 
   string class_name = this->nspace + name;
-  string class_name_lc = to_lower_case(initial_caps_to_underscores(class_name));
+  string class_name_lc = this->nspace_lc + initial_caps_to_underscores(name);
   string class_name_uc = to_upper_case(class_name_lc);
 
   string function_name;
@@ -3124,7 +3137,8 @@ void t_c_glib_generator::generate_object(t_struct* tstruct) {
                         << "THRIFT_UNUSED_VAR (object);" << endl;
 
   for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-    t_type* t = get_true_type((*m_iter)->get_type());
+    t_type* member_type = (*m_iter)->get_type();
+    t_type* t = get_true_type(member_type);
     if (t->is_base_type()) {
       string dval = " = ";
       if (t->is_enum()) {
@@ -3139,10 +3153,14 @@ void t_c_glib_generator::generate_object(t_struct* tstruct) {
       indent(f_types_impl_) << "object->" << (*m_iter)->get_name() << dval << ";" << endl;
     } else if (t->is_struct()) {
       string name = (*m_iter)->get_name();
-      string type_name_uc
-          = to_upper_case(initial_caps_to_underscores((*m_iter)->get_type()->get_name()));
-      indent(f_types_impl_) << "object->" << name << " = g_object_new (" << this->nspace_uc
-                            << "TYPE_" << type_name_uc << ", NULL);" << endl;
+      t_program* type_program = member_type->get_program();
+      string type_nspace = type_program ? type_program->get_namespace("c_glib") : "";
+      string type_nspace_prefix =
+        type_nspace.empty() ? "" : initial_caps_to_underscores(type_nspace) + "_";
+      string type_name_uc = to_upper_case(initial_caps_to_underscores(member_type->get_name()));
+      indent(f_types_impl_) << "object->" << name << " = g_object_new ("
+                            << to_upper_case(type_nspace_prefix) << "TYPE_" << type_name_uc
+                            << ", NULL);" << endl;
     } else if (t->is_xception()) {
       string name = (*m_iter)->get_name();
       indent(f_types_impl_) << "object->" << name << " = NULL;" << endl;
@@ -3424,7 +3442,12 @@ void t_c_glib_generator::generate_object(t_struct* tstruct) {
                       << "G_PARAM_READWRITE));" << endl;
         indent_down();
       } else if (member_type->is_struct() || member_type->is_xception()) {
-        string param_type = this->nspace_uc + "TYPE_"
+        t_program* type_program = member_type->get_program();
+        string type_nspace = type_program ? type_program->get_namespace("c_glib") : "";
+        string type_nspace_prefix =
+          type_nspace.empty() ? "" : initial_caps_to_underscores(type_nspace) + "_";
+
+        string param_type = to_upper_case(type_nspace_prefix) + "TYPE_"
                             + to_upper_case(initial_caps_to_underscores(member_type->get_name()));
 
         args_indent += string(20, ' ');
@@ -3480,7 +3503,7 @@ void t_c_glib_generator::generate_object(t_struct* tstruct) {
 /**
  * Generates functions to write Thrift structures to a stream.
  */
-void t_c_glib_generator::generate_struct_writer(ofstream& out,
+void t_c_glib_generator::generate_struct_writer(ostream& out,
                                                 t_struct* tstruct,
                                                 string this_name,
                                                 string this_get,
@@ -3553,7 +3576,7 @@ void t_c_glib_generator::generate_struct_writer(ofstream& out,
 /**
  * Generates code to read Thrift structures from a stream.
  */
-void t_c_glib_generator::generate_struct_reader(ofstream& out,
+void t_c_glib_generator::generate_struct_reader(ostream& out,
                                                 t_struct* tstruct,
                                                 string this_name,
                                                 string this_get,
@@ -3690,7 +3713,7 @@ void t_c_glib_generator::generate_struct_reader(ofstream& out,
   indent(out) << "}" << endl << endl;
 }
 
-void t_c_glib_generator::generate_serialize_field(ofstream& out,
+void t_c_glib_generator::generate_serialize_field(ostream& out,
                                                   t_field* tfield,
                                                   string prefix,
                                                   string suffix,
@@ -3756,7 +3779,7 @@ void t_c_glib_generator::generate_serialize_field(ofstream& out,
   }
 }
 
-void t_c_glib_generator::generate_serialize_struct(ofstream& out,
+void t_c_glib_generator::generate_serialize_struct(ostream& out,
                                                    t_struct* tstruct,
                                                    string prefix,
                                                    int error_ret) {
@@ -3766,7 +3789,7 @@ void t_c_glib_generator::generate_serialize_struct(ofstream& out,
       << indent() << "xfer += ret;" << endl << endl;
 }
 
-void t_c_glib_generator::generate_serialize_container(ofstream& out,
+void t_c_glib_generator::generate_serialize_container(ostream& out,
                                                       t_type* ttype,
                                                       string prefix,
                                                       int error_ret) {
@@ -3923,7 +3946,7 @@ void t_c_glib_generator::generate_serialize_container(ofstream& out,
   scope_down(out);
 }
 
-void t_c_glib_generator::generate_serialize_map_element(ofstream& out,
+void t_c_glib_generator::generate_serialize_map_element(ostream& out,
                                                         t_map* tmap,
                                                         string key,
                                                         string value,
@@ -3935,7 +3958,7 @@ void t_c_glib_generator::generate_serialize_map_element(ofstream& out,
   generate_serialize_field(out, &vfield, "", "", error_ret);
 }
 
-void t_c_glib_generator::generate_serialize_set_element(ofstream& out,
+void t_c_glib_generator::generate_serialize_set_element(ostream& out,
                                                         t_set* tset,
                                                         string element,
                                                         int error_ret) {
@@ -3943,7 +3966,7 @@ void t_c_glib_generator::generate_serialize_set_element(ofstream& out,
   generate_serialize_field(out, &efield, "", "", error_ret);
 }
 
-void t_c_glib_generator::generate_serialize_list_element(ofstream& out,
+void t_c_glib_generator::generate_serialize_list_element(ostream& out,
                                                          t_list* tlist,
                                                          string list,
                                                          string index,
@@ -3975,7 +3998,7 @@ void t_c_glib_generator::generate_serialize_list_element(ofstream& out,
 }
 
 /* deserializes a field of any type. */
-void t_c_glib_generator::generate_deserialize_field(ofstream& out,
+void t_c_glib_generator::generate_deserialize_field(ostream& out,
                                                     t_field* tfield,
                                                     string prefix,
                                                     string suffix,
@@ -4068,7 +4091,7 @@ void t_c_glib_generator::generate_deserialize_field(ofstream& out,
   }
 }
 
-void t_c_glib_generator::generate_deserialize_struct(ofstream& out,
+void t_c_glib_generator::generate_deserialize_struct(ostream& out,
                                                      t_struct* tstruct,
                                                      string prefix,
                                                      int error_ret,
@@ -4101,7 +4124,7 @@ void t_c_glib_generator::generate_deserialize_struct(ofstream& out,
   out << indent() << "}" << endl << indent() << "xfer += ret;" << endl;
 }
 
-void t_c_glib_generator::generate_deserialize_container(ofstream& out,
+void t_c_glib_generator::generate_deserialize_container(ostream& out,
                                                         t_type* ttype,
                                                         string prefix,
                                                         int error_ret) {
@@ -4202,7 +4225,7 @@ void t_c_glib_generator::generate_deserialize_container(ofstream& out,
   scope_down(out);
 }
 
-void t_c_glib_generator::declare_local_variable(ofstream& out, t_type* ttype, string& name, bool for_hash_table) {
+void t_c_glib_generator::declare_local_variable(ostream& out, t_type* ttype, string& name, bool for_hash_table) {
   string tname = type_name(ttype);
 
   /* If the given type is a typedef, find its underlying type so we
@@ -4226,7 +4249,7 @@ void t_c_glib_generator::declare_local_variable(ofstream& out, t_type* ttype, st
   }
 }
 
-void t_c_glib_generator::declore_local_variable_for_write(ofstream& out,
+void t_c_glib_generator::declore_local_variable_for_write(ostream& out,
                                                           t_type* ttype,
                                                           string& name) {
   string tname = type_name(ttype);
@@ -4236,7 +4259,7 @@ void t_c_glib_generator::declore_local_variable_for_write(ofstream& out,
   out << indent() << tname << ptr << name << init_val << ";" << endl;
 }
 
-void t_c_glib_generator::generate_deserialize_map_element(ofstream& out,
+void t_c_glib_generator::generate_deserialize_map_element(ostream& out,
                                                           t_map* tmap,
                                                           string prefix,
                                                           int error_ret) {
@@ -4270,7 +4293,7 @@ void t_c_glib_generator::generate_deserialize_map_element(ofstream& out,
   indent_down();
 }
 
-void t_c_glib_generator::generate_deserialize_set_element(ofstream& out,
+void t_c_glib_generator::generate_deserialize_set_element(ostream& out,
                                                           t_set* tset,
                                                           string prefix,
                                                           int error_ret) {
@@ -4290,7 +4313,7 @@ void t_c_glib_generator::generate_deserialize_set_element(ofstream& out,
   indent_down();
 }
 
-void t_c_glib_generator::generate_deserialize_list_element(ofstream& out,
+void t_c_glib_generator::generate_deserialize_list_element(ostream& out,
                                                            t_list* tlist,
                                                            string prefix,
                                                            string index,
@@ -4482,23 +4505,21 @@ string t_c_glib_generator::generate_new_array_from_type(t_type* ttype) {
  ***************************************/
 
 /**
- * Upper case a string.  Wraps boost's string utility.
+ * Upper case a string.
  */
 string to_upper_case(string name) {
   string s(name);
   std::transform(s.begin(), s.end(), s.begin(), ::toupper);
   return s;
-  //  return boost::to_upper_copy (name);
 }
 
 /**
- * Lower case a string.  Wraps boost's string utility.
+ * Lower case a string.
  */
 string to_lower_case(string name) {
   string s(name);
   std::transform(s.begin(), s.end(), s.begin(), ::tolower);
   return s;
-  //  return boost::to_lower_copy (name);
 }
 
 /**

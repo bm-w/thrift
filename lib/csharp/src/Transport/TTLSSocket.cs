@@ -263,7 +263,7 @@ namespace Thrift.Transport
         /// <param name="sender">The sender-object.</param>
         /// <param name="certificate">The used certificate.</param>
         /// <param name="chain">The certificate chain.</param>
-        /// <param name="sslPolicyErrors">An enum, which lists all the errors from the .NET certificate check.</param>
+        /// <param name="sslValidationErrors">An enum, which lists all the errors from the .NET certificate check.</param>
         /// <returns></returns>
         private bool DefaultCertificateValidator(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslValidationErrors)
         {
@@ -280,7 +280,7 @@ namespace Thrift.Transport
                 throw new TTransportException(TTransportException.ExceptionType.AlreadyOpen, "Socket already connected");
             }
 
-            if (String.IsNullOrEmpty(host))
+            if (string.IsNullOrEmpty(host))
             {
                 throw new TTransportException(TTransportException.ExceptionType.NotOpen, "Cannot open null host");
             }
@@ -295,7 +295,33 @@ namespace Thrift.Transport
                 InitSocket();
             }
 
-            client.Connect(host, port);
+            if (timeout == 0)            // no timeout -> infinite
+            {
+                client.Connect(host, port);
+            }
+            else                        // we have a timeout -> use it
+            {
+                ConnectHelper hlp = new ConnectHelper(client);
+                IAsyncResult asyncres = client.BeginConnect(host, port, new AsyncCallback(ConnectCallback), hlp);
+                bool bConnected = asyncres.AsyncWaitHandle.WaitOne(timeout) && client.Connected;
+                if (!bConnected)
+                {
+                    lock (hlp.Mutex)
+                    {
+                        if (hlp.CallbackDone)
+                        {
+                            asyncres.AsyncWaitHandle.Close();
+                            client.Close();
+                        }
+                        else
+                        {
+                            hlp.DoCleanup = true;
+                            client = null;
+                        }
+                    }
+                    throw new TTransportException(TTransportException.ExceptionType.TimedOut, "Connect timed out");
+                }
+            }
 
             setupTLS();
         }
@@ -307,7 +333,7 @@ namespace Thrift.Transport
         {
             RemoteCertificateValidationCallback validator = this.certValidator ?? DefaultCertificateValidator;
 
-            if( this.localCertificateSelectionCallback != null)
+            if (this.localCertificateSelectionCallback != null)
             {
                 this.secureStream = new SslStream(
                     this.client.GetStream(),
@@ -335,7 +361,7 @@ namespace Thrift.Transport
                 else
                 {
                     // Client authentication
-                    X509CertificateCollection certs = certificate != null ?  new X509CertificateCollection { certificate } : new X509CertificateCollection();
+                    X509CertificateCollection certs = certificate != null ? new X509CertificateCollection { certificate } : new X509CertificateCollection();
                     this.secureStream.AuthenticateAsClient(host, certs, sslProtocols, true);
                 }
             }
@@ -347,6 +373,54 @@ namespace Thrift.Transport
 
             inputStream = this.secureStream;
             outputStream = this.secureStream;
+        }
+        
+        static void ConnectCallback(IAsyncResult asyncres)
+        {
+            ConnectHelper hlp = asyncres.AsyncState as ConnectHelper;
+            lock (hlp.Mutex)
+            {
+                hlp.CallbackDone = true;
+
+                try
+                {
+                    if (hlp.Client.Client != null)
+                        hlp.Client.EndConnect(asyncres);
+                }
+                catch (Exception)
+                {
+                    // catch that away
+                }
+
+                if (hlp.DoCleanup)
+                {
+                    try
+                    {
+                        asyncres.AsyncWaitHandle.Close();
+                    }
+                    catch (Exception) { }
+
+                    try
+                    {
+                        if (hlp.Client is IDisposable)
+                            ((IDisposable)hlp.Client).Dispose();
+                    }
+                    catch (Exception) { }
+                    hlp.Client = null;
+                }
+            }
+        }
+
+        private class ConnectHelper
+        {
+            public object Mutex = new object();
+            public bool DoCleanup = false;
+            public bool CallbackDone = false;
+            public TcpClient Client;
+            public ConnectHelper(TcpClient client)
+            {
+                Client = client;
+            }
         }
 
         /// <summary>

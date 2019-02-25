@@ -682,7 +682,7 @@ void t_swift_generator::generate_swift_struct(ostream& out,
       string doc = (*m_iter)->get_doc();
       generate_docstring(out, doc);
       out << indent() << "case "
-          << maybe_escape_identifier((*m_iter)->get_name()) << "(val: "
+          << maybe_escape_identifier((*m_iter)->get_name()) << "("
           << type_name((*m_iter)->get_type(), false) << ")" << endl;
     }
   } else {
@@ -1099,7 +1099,7 @@ void t_swift_generator::generate_swift_union_reader(ostream& out, t_struct* tstr
     }
 
     indent(out) << padding << "ret = " << tstruct->get_name() << "."
-                << (*f_iter)->get_name() << "(val: " << "try "
+                << (*f_iter)->get_name() << "(" << "try "
                 << type_name((*f_iter)->get_type(), false, false)
                 << ".read(from: proto))" << endl;
   }
@@ -1467,7 +1467,7 @@ void t_swift_generator::generate_swift_struct_printable_extension(ostream& out, 
       indent(out) << "switch self {" << endl;
       for (f_iter = fields.begin(); f_iter != fields.end();f_iter++) {
         indent(out) << "case ." << (*f_iter)->get_name() << "(let val): "
-                    << "desc += \"" << (*f_iter)->get_name() << "(val: \\(val))\""
+                    << "desc += \"" << (*f_iter)->get_name() << "(\\(val))\""
                     << endl;
       }
       indent(out) << "}" << endl;
@@ -2180,6 +2180,7 @@ void t_swift_generator::generate_swift_service_client_async_implementation(ostre
     out << indent() << "if let error = error";
     block_open(out);
     out << indent() << error_completion_call << endl;
+    out << indent() << "return" << endl;
     block_close(out);
 
     if (!is_oneway) {

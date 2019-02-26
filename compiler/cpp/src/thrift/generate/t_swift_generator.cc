@@ -2710,12 +2710,12 @@ void t_swift_generator::render_const_value(ostream& out,
 
     t_type* etype = ((t_list*)type)->get_elem_type();
 
-    const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
-    map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
+    const vector<t_const_value*>& val = value->get_list();
+    vector<t_const_value*>::const_iterator v_iter;
 
     for (v_iter = val.begin(); v_iter != val.end();) {
 
-      render_const_value(out, etype, v_iter->first);
+      render_const_value(out, etype, *v_iter);
 
       if (++v_iter != val.end()) {
         out << ", ";

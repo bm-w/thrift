@@ -1447,7 +1447,11 @@ void t_swift_generator::generate_swift_struct_printable_extension(ostream& out, 
 
   block_open(out);
   out << endl;
-  indent(out) << "public var description : String";
+
+  indent(out) << "public var "
+              << (debug_descriptions_ ? "debugDescription" : "description")
+              << " : String";
+
   block_open(out);
   indent(out) << "var desc = \"" << tstruct->get_name();
 
@@ -1462,6 +1466,7 @@ void t_swift_generator::generate_swift_struct_printable_extension(ostream& out, 
         }
         out << "\"" << endl;
       }
+      indent(out) << "desc += \")\"" << endl;
     } else {
       out << ".\"" << endl;
       indent(out) << "switch self {" << endl;

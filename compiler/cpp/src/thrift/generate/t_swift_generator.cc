@@ -1459,6 +1459,7 @@ void t_swift_generator::generate_swift_struct_printable_extension(ostream& out, 
         }
         out << "\"" << endl;
       }
+      indent(out) << "desc += \")\"" << endl;
     } else {
       out << ".\"" << endl;
       indent(out) << "switch self {" << endl;

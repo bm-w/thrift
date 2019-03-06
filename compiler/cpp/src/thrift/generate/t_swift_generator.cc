@@ -61,6 +61,7 @@ public:
     gen_cocoa_ = false;
     promise_kit_ = false;
     safe_enums_ = false;
+    safe_unions_ = false;
 
     for( iter = parsed_options.begin(); iter != parsed_options.end(); ++iter) {
       if( iter->first.compare("log_unexpected") == 0) {
@@ -77,6 +78,8 @@ public:
         gen_cocoa_ = true;
       } else if( iter->first.compare("safe_enums") == 0) {
         safe_enums_ = true;
+      } else if( iter->first.compare("safe_unions") == 0) {
+        safe_unions_ = true;
       } else if( iter->first.compare("promise_kit") == 0) {
         if (gen_cocoa_ == false) {
           throw "PromiseKit only available with Swift 2.x, use `cocoa` option" + iter->first;
@@ -282,6 +285,7 @@ private:
   bool no_strict_;
   bool namespaced_;
   bool safe_enums_;
+  bool safe_unions_;
   set<string> swift_reserved_words_;
 
   /** Swift 2/Cocoa compatibility */
@@ -685,6 +689,10 @@ void t_swift_generator::generate_swift_struct(ostream& out,
           << maybe_escape_identifier((*m_iter)->get_name()) << "("
           << type_name((*m_iter)->get_type(), false) << ")" << endl;
     }
+    if (safe_unions_) {
+      out << endl;
+      f_decl_ << indent() << "case unknown(fieldID: Int32?)" << endl;
+    }
   } else {
     // Normal structs
 
@@ -876,6 +884,9 @@ void t_swift_generator::generate_swift_struct_hashable_extension(ostream& out,
         t_field *tfield = *m_iter;
         indent(out) << "case ." << tfield->get_name() << "(let val): result = prime &* val.hashValue" << endl;
       }
+      if (safe_unions_) {
+        indent(out) << "case .unknown(let fieldID): result = prime &* fieldID.hashValue" << endl;
+      }
       indent(out) << "}" << endl << endl;
     }
     indent(out) << "return result" << endl;
@@ -1048,6 +1059,9 @@ void t_swift_generator::generate_swift_union_reader(ostream& out, t_struct* tstr
   indent(out) << "_ = try proto.readStructBegin()" << endl;
 
   indent(out) << "var ret: " << tstruct->get_name() << "?";
+  if (safe_unions_) {
+    out << ", unknownFieldID: Int32?";
+  }
   out << endl;
   indent(out) << "fields: while true";
   block_open(out);
@@ -1097,7 +1111,11 @@ void t_swift_generator::generate_swift_union_reader(ostream& out, t_struct* tstr
                 << ".read(from: proto))" << endl;
   }
 
-  indent(out) << "case let (_, unknownType):  try proto.skip(type: unknownType)" << endl;
+  indent(out) << "case let (_, unknownType):  ";
+  if (safe_unions_) {
+    out << "unknownFieldID = fieldID; ";
+  }
+  out << "try proto.skip(type: unknownType)" << endl;
 
   block_close(out);
   indent(out) << "try proto.readFieldEnd()" << endl;
@@ -1107,13 +1125,17 @@ void t_swift_generator::generate_swift_union_reader(ostream& out, t_struct* tstr
 
   indent(out) << "try proto.readStructEnd()" << endl;
 
-  indent(out) << "if let ret = ret";
-  block_open(out);
-  indent(out) << "return ret" << endl;
-  block_close(out);
-  out << endl;
-  indent(out) << "throw TProtocolError(error: .unknown, message: \"Missing required value for type: "
-              << tstruct->get_name() << "\")";
+  if (!safe_unions_) {
+    indent(out) << "if let ret = ret";
+    block_open(out);
+    indent(out) << "return ret" << endl;
+    block_close(out);
+    out << endl;
+    indent(out) << "throw TProtocolError(error: .unknown, message: \"Missing required value for type: "
+                << tstruct->get_name() << "\")";
+  } else {
+    indent(out) << "return ret ?? .unknown(fieldID: unknownFieldID)" << endl;
+  }
   block_close(out);
   out << endl;
 
@@ -1461,6 +1483,11 @@ void t_swift_generator::generate_swift_struct_printable_extension(ostream& out, 
       for (f_iter = fields.begin(); f_iter != fields.end();f_iter++) {
         indent(out) << "case ." << (*f_iter)->get_name() << "(let val): "
                     << "desc += \"" << (*f_iter)->get_name() << "(\\(val))\""
+                    << endl;
+      }
+      if (safe_unions_) {
+        indent(out) << "case .unknown(let fieldID): "
+                    << "desc += \"unknown(fieldID: \\(fieldID.map({ \"\\($0)\" }) ?? \"nil\"))\""
                     << endl;
       }
       indent(out) << "}" << endl;

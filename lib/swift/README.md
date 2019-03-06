@@ -92,6 +92,7 @@ func write(_ val: String) throws
 | debug_descriptions | Allow use of debugDescription so the app can add description via a cateogory/extension      |
 | log_unexpected | Log every time an unexpected field ID or type is encountered. |
 | safe_enums     | Generate enum types with an unknown case to handle unspecified values rather than throw a serialization error  |
+| safe_unions    | Generate union types with an unknown case to handle unspecified values rather than throw a serialization error  |
 
 
 

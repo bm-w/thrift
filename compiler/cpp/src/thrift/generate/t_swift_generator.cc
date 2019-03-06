@@ -439,17 +439,21 @@ void t_swift_generator::generate_enum(t_enum* tenum) {
   f_decl_ << indent() << "let raw: Int32 = try proto.read()" << endl;
   f_decl_ << indent() << "let new = " << tenum->get_name() << "(rawValue: raw)" << endl;
 
-  f_decl_ << indent() << "if let unwrapped = new {" << endl;
-  indent_up();
-  f_decl_ << indent() << "return unwrapped" << endl;
-  indent_down();
-  f_decl_ << indent() << "} else {" << endl;
-  indent_up();
-  f_decl_ << indent() << "throw TProtocolError(error: .invalidData," << endl;
-  f_decl_ << indent() << "                     message: \"Invalid enum value (\\(raw)) for \\("
-          << tenum->get_name() << ".self)\")" << endl;
-  indent_down();
-  f_decl_ << indent() << "}" << endl;
+  if (!safe_enums_) {
+    f_decl_ << indent() << "if let unwrapped = new {" << endl;
+    indent_up();
+    f_decl_ << indent() << "return unwrapped" << endl;
+    indent_down();
+    f_decl_ << indent() << "} else {" << endl;
+    indent_up();
+    f_decl_ << indent() << "throw TProtocolError(error: .invalidData," << endl;
+    f_decl_ << indent() << "                     message: \"Invalid enum value (\\(raw)) for \\("
+            << tenum->get_name() << ".self)\")" << endl;
+    indent_down();
+    f_decl_ << indent() << "}" << endl;
+  } else {
+    f_decl_ << indent() << "return new" << endl;
+  }
   block_close(f_decl_);
 
   // empty init for TSerializable
@@ -477,7 +481,9 @@ void t_swift_generator::generate_enum(t_enum* tenum) {
   f_decl_ << endl;
 
   // convenience rawValue initalizer
-  f_decl_ << indent() << "public init?(rawValue: Int32)";
+  f_decl_ << indent() << "public init"
+                      << (safe_enums_ ? "" : "?")
+                      << "(rawValue: Int32)";
   block_open(f_decl_);
   f_decl_ << indent() << "switch rawValue {" << endl;;
   for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
